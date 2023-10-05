@@ -1,60 +1,28 @@
-import requests
 from flask_socketio import SocketIO, emit
 from flask import Flask, session
 
 application = Flask(__name__)
 socketio = SocketIO(application, async_mode=None, cors_allowed_origins="*")
 
-url = 'https://api.coinbase.com/v2/prices/btc-usd/spot'
 response_event = "response_to_frontend"
 
-streaming = True
-thread = None
+messages = []
 
-def background_thread():
-    """Example of how to send server-generated events to clients."""
-    count = 0
-    if not streaming: print("Streaming paused")
-    while True:
-        socketio.sleep(1)
-        count += 1
-        price = ((requests.get(url)).json())['data']['amount'] if streaming else 0
+@socketio.on("new_message")
+def new_message(message):
+    session["new_message"] = session.get("new_message", 0) + 1
 
-        # if streaming: 
-        #     with conn.cursor() as cur:
-        #         cur.execute(
-        #             "INSERT INTO btc_prices (price, timestamp) VALUES (%s, NOW())", (price,))
-        #         conn.commit()
-
-        print(price)
-        socketio.emit(response_event,
-                      {'price': price, 'count': count, 'currency': 'USD', 'streaming': "true" if streaming else "false"})
-
-
-receive_count = "receive_count"
-@socketio.on(receive_count)
-def receive_count(message):
-    session[receive_count] = session.get(receive_count, 0) + 1
-    emit(response_event,
-         {'data': message['data'], 'count': session[receive_count]})
-
-
-@socketio.on('control_streaming')
-def control_streaming(message):
-    print(message)
-    global streaming
-    if message == 'pause':
-        streaming = False
-    elif message == 'stream':
-        streaming = True
+    print(f"New message received: {message}")
+    
+    # Add the new message to the messages array
+    messages.append(message['message'])
+    
+    # Emit a response to the frontend with the updated messages array and count
+    emit("response_to_frontend", {'message': message['message']}, broadcast=True)
 
 @socketio.on('connect')
 def connect():
-    global thread
-    if thread is None:
-        thread = socketio.start_background_task(background_thread)
-        emit('my_response', {'data': 'Connected', 'count': 0})
-
+    emit("response_to_frontend", {'message': "hello"}, broadcast=True)
 
 if __name__ == '__main__':
     socketio.run(application, host='0.0.0.0', port=5000, debug=True)

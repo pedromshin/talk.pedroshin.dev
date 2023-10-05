@@ -1,0 +1,63 @@
+version: 2.1
+jobs:
+  build:
+    docker:
+      - image: cimg/python:3.11
+    working_directory: ~/app
+    steps:
+      - checkout
+
+      # Install dependencies
+      - run:
+          name: Install dependencies
+          command: |
+            pip install -r requirements.txt
+
+  deploy:
+    docker:
+      - image: cimg/python:3.8
+    working_directory: ~/app
+    steps:
+      - checkout
+
+      # Install AWS CLI (if not already installed)
+      - run:
+          name: Install AWS CLI
+          command: |
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+
+      # Install EB CLI
+      - run:
+          name: Install EB CLI
+          command: |
+            pip install awsebcli
+
+      # Authenticate with AWS
+      - run:
+          name: AWS Authentication
+          command: |
+            aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+            aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+            aws configure set default.region $AWS_REGION
+
+      # Initialize AWS Elastic Beanstalk
+      - run:
+          name: Initialize AWS Elastic Beanstalk
+          command: |
+            eb init -p python-3.11 talk.pedroshin.dev --region $AWS_REGION
+
+      # Deploy to AWS Elastic Beanstalk
+      - run:
+          name: Deploy to AWS Elastic Beanstalk
+          command: |
+            eb deploy talk-pedroshindev-env
+
+workflows:
+  build_and_deploy:
+    jobs:
+      - build
+      - deploy:
+          requires:
+            - build
