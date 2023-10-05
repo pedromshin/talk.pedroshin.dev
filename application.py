@@ -20,9 +20,5 @@ def new_message(message):
     # Emit a response to the frontend with the updated messages array and count
     emit("response_to_frontend", {'message': message['message']}, broadcast=True)
 
-@socketio.on('connect')
-def connect():
-    emit("response_to_frontend", {'message': "Successfully connected (only visible to you)"}, broadcast=True)
-
 if __name__ == '__main__':
     socketio.run(application, host='0.0.0.0', port=5000, debug=True)
